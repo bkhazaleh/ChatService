@@ -23,10 +23,22 @@ namespace client
         // The response from the remote device.  
         private static String response = String.Empty;
 
-        private static bool LoadSettings()
+        private static bool LoadSettings(bool test)
         {
             try
             {
+                if (test)
+                {
+                    Settings = new AppSettings
+                    {
+                        Host = Dns.GetHostName(),
+                      
+                        Port = 5950,
+                        EndOfMessage = "<EOF>"
+                    };
+                    Console.WriteLine(Settings.Host);
+                    return true;
+                }
                 if (File.Exists(General.SettingsFile))
                 {
                     using (StreamReader r = new StreamReader(General.SettingsFile))
@@ -46,10 +58,10 @@ namespace client
 
         }
 
-        public static void StartClient()
+        public static void StartClient(object test)
         {
             // Connect to a remote device.
-            if (!LoadSettings()) return;
+            if (!LoadSettings((bool)test)) return;
 
             // Establish the remote endpoint for the socket.  
             // The name of the remote device is saved in the appSettings.json  
@@ -80,7 +92,7 @@ namespace client
                         }
                         Console.WriteLine("Enter the message to be sent.");
                         //Accept the message
-                        string message = Console.ReadLine();
+                        string message = ((bool)test?  "Test Message" :  Console.ReadLine());
 
                         if (string.Equals(message, "")) return;
 
@@ -95,6 +107,8 @@ namespace client
                         // Receive the response from the remote device.  
                         Receive(client);
                         receiveDone.WaitOne();
+
+                        if ((bool)test) Continue = false;
                     }
 
 

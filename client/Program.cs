@@ -6,7 +6,7 @@ namespace client
     {
         static void Main(string[] args)
         {
-            AsynchronousClient.StartClient();
+            AsynchronousClient.StartClient(false);
         }
     }
 }
