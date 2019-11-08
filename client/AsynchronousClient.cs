@@ -18,6 +18,8 @@ namespace client
         private static ManualResetEvent sendDone = new ManualResetEvent(false);
         private static ManualResetEvent receiveDone = new ManualResetEvent(false);
 
+        private static bool Continue = true;
+
         // The response from the remote device.  
         private static String response = String.Empty;
 
@@ -63,7 +65,7 @@ namespace client
                 try
                 {
 
-                    while (true)
+                    while (Continue)
                     {
                         //reset the ManualResetEvent instances signal completion
                         connectDone.Reset();
@@ -84,18 +86,15 @@ namespace client
 
 
 
-                        // Send test data to the remote device.
+                        // Send the data to the remote device.
 
                         Send(client, message + Settings.EndOfMessage);
                         sendDone.WaitOne();
 
+
                         // Receive the response from the remote device.  
                         Receive(client);
                         receiveDone.WaitOne();
-
-                        // Write the response to the console.  
-                        Console.WriteLine("Response received : {0}", response);
-
                     }
 
 
@@ -135,7 +134,10 @@ namespace client
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                //Could not connect
+                Console.WriteLine("Could not connect to the server, please make sure it is working.");
+                Continue = false;
+                //Console.WriteLine(ex.ToString());
             }
         }
 
@@ -181,6 +183,11 @@ namespace client
                         // All the data has been read from the server
                         
                         state.sb.Clear();
+
+                        //Check if Connection Closed
+                        if (response.Equals("Error!! The connection will be closed." + Settings.EndOfMessage)) Continue = false;
+                        // Write the response to the console.  
+                        Console.WriteLine("Server Response: {0}", response.TrimEnd(Settings.EndOfMessage.ToCharArray()));
                         receiveDone.Set();
                     }
                     else
@@ -235,7 +242,7 @@ namespace client
 
                 // Complete sending the data to the remote device.  
                 int bytesSent = client.EndSend(ar);
-                Console.WriteLine("Sent {0} bytes to server.", bytesSent);
+                // Console.WriteLine("Sent {0} bytes to server.", bytesSent);
 
                 // Signal that all bytes have been sent.  
                 sendDone.Set();
@@ -245,5 +252,7 @@ namespace client
                 Console.WriteLine(ex.ToString());
             }
         }
+
+        
     }
 }

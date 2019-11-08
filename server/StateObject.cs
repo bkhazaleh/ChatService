@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Text;
+using static server.General;
 
 namespace server
 {
@@ -15,5 +16,12 @@ namespace server
         public byte[] buffer = new byte[BufferSize];
         // Received data string.  
         public StringBuilder sb = new StringBuilder();
+        // Current status
+        public Status CurrentStatus = Status.NotSet;
+        // Time of last received message
+        public DateTime LastMessageTime = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 3));
+        // Action to be done after receiving the message
+        public General.Action ActionToBeDone = General.Action.doNothing;
+
     }
 }

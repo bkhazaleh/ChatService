@@ -6,15 +6,17 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
+using static server.General;
 
 namespace server
 {
+    
     public class SocketListener
     {
         private static AppSettings Settings;
         // Thread signal.  
         public static ManualResetEvent allDone = new ManualResetEvent(false);
-
+        
         public SocketListener()
         {
 
@@ -103,6 +105,8 @@ namespace server
                 // Create the state object.  
                 StateObject state = new StateObject();
                 state.workSocket = handler;
+                state.CurrentStatus = General.Status.Connected;
+               
                 handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
                     new AsyncCallback(ReadCallback), state);
             }
@@ -129,6 +133,11 @@ namespace server
 
                 if (bytesRead > 0)
                 {
+                    //start of the message need to set the message time
+                   if(state.sb.Length == 0)
+                    {
+                        SetAction(state);
+                    }
                     // There  might be more data, so store the data received so far.  
                     state.sb.Append(Encoding.ASCII.GetString(
                         state.buffer, 0, bytesRead));
@@ -140,13 +149,11 @@ namespace server
                     {
                         // All the data has been read from the   
                         // client. Display it on the console.  
-                        Console.WriteLine("Read {0} bytes from socket. \n Data : {1}",
-                            content.Length, content);
-                        // Echo the data back to the client.  
-                        Send(handler, content);
-                        state.sb.Clear();
-                        handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
-                        new AsyncCallback(ReadCallback), state);
+                        Console.WriteLine("Client {0} : {1}",
+                            handler.RemoteEndPoint.ToString(), content.TrimEnd(Settings.EndOfMessage.ToCharArray()));
+                        // send the client the server reply.
+                        ApplyAction(handler, state);
+                        
                     }
                     else
                     {
@@ -193,7 +200,7 @@ namespace server
 
                     // Complete sending the data to the remote device.  
                     int bytesSent = handler.EndSend(ar);
-                    Console.WriteLine("Sent {0} bytes to client.", bytesSent);
+                    //Console.WriteLine("Sent {0} bytes to client.", bytesSent);
 
                 }
                 catch (Exception ex)
@@ -208,6 +215,84 @@ namespace server
                 Console.WriteLine(ex.ToString());
             }
             
+        }
+
+        private static void SetAction(StateObject state)
+        {
+            try
+            {
+
+                    if (DateTime.UtcNow.Subtract(state.LastMessageTime).TotalSeconds <= 1.0)
+                    {
+                        if (state.CurrentStatus == Status.Warning) {
+                            state.CurrentStatus = Status.ConnectionRefused;
+                            state.ActionToBeDone = General.Action.StopTheClient;
+
+                        }else
+                        {
+                            state.CurrentStatus = Status.Warning;
+                            state.ActionToBeDone = General.Action.WarnTheClient;
+                        }
+                       
+
+                    }else
+                    {
+                        state.ActionToBeDone = General.Action.doNothing;
+                    }
+                    
+                    state.LastMessageTime = DateTime.UtcNow;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                
+            }
+        }
+
+        private static void ApplyAction(Socket handler, StateObject state)
+        {
+            try
+            {
+                
+                string content;
+                
+             
+                switch (state.ActionToBeDone)
+                {
+                    //Send Ok message
+                    case General.Action.doNothing:
+                        content = "OK" + Settings.EndOfMessage;
+                        Send(handler, content);
+                        state.sb.Clear();
+                        handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
+                        new AsyncCallback(ReadCallback), state);
+                        break;
+                    case General.Action.WarnTheClient:
+                        content = "Warning!! Please do not send more than one message in a second." + Settings.EndOfMessage;
+                        Send(handler, content);
+                        state.sb.Clear();
+                        handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
+                        new AsyncCallback(ReadCallback), state);
+                        break;
+                    case General.Action.StopTheClient:
+                        content = "Error!! The connection will be closed." + Settings.EndOfMessage;
+                        Send(handler, content);
+                        state.sb.Clear();
+                        //Shutdown the connection
+                        handler.Shutdown(SocketShutdown.Both);
+                        handler.Close();
+                        break;
+
+                }
+
+                
+              
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+
+            }
         }
     }
 }
