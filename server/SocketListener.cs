@@ -45,13 +45,29 @@ namespace server
 
         }
 
-        public static void StartListening()
+        public static void StartListening(object test)
         {
-            if (!LoadSettings()) return;
+         
+            if (!LoadSettings())
+            {
+                if ((bool)test) {
+                    Settings = new AppSettings
+                    {
+                        Port = 5950,
+                        EndOfMessage = "<EOF>"
+                    };
+                }
+                else
+                {
+                    return;
+                }
+                    
+            }
             // Establish the local endpoint for the socket.  
             // The DNS name of the computer  
             // running the listener is "host.contoso.com".  
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
+            Console.WriteLine(ipHostInfo);
             IPAddress ipAddress = ipHostInfo.AddressList[0];
             IPEndPoint localEndPoint = new IPEndPoint(ipAddress, Settings.Port);
 
@@ -106,7 +122,8 @@ namespace server
                 StateObject state = new StateObject();
                 state.workSocket = handler;
                 state.CurrentStatus = General.Status.Connected;
-               
+
+                Console.WriteLine("Client " + handler.RemoteEndPoint.ToString() + " is connected.");
                 handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
                     new AsyncCallback(ReadCallback), state);
             }
@@ -279,6 +296,7 @@ namespace server
                         Send(handler, content);
                         state.sb.Clear();
                         //Shutdown the connection
+                        Console.WriteLine("Client " + handler.RemoteEndPoint.ToString() + " is shutted down.");
                         handler.Shutdown(SocketShutdown.Both);
                         handler.Close();
                         break;

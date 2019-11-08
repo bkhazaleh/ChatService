@@ -6,7 +6,7 @@ namespace server
     {
         static void Main(string[] args)
         {
-           SocketListener.StartListening();
+           SocketListener.StartListening(false);
         }
     }
 }
